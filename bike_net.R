@@ -1,22 +1,7 @@
 #bike_net
-# looking for my bike on the web.
+# Web scrapping bikes (with shimano XP) in Sweden and Denmark
 
-library(rvest)
-
-#read previous results from a file
-bike_list <- read.csv(file = "bike_list.csv")
-bike_list$date <- as.Date(bike_list$date)
-
-#Filter: All sweden + cyclar + (XT or Btwin) 
-bike_list <-blocket_update("https://www.blocket.se/hela_sverige?q=Btwin+OR+XT&cg=6060&w=3&st=s&c=&f=p&ca=23&is=1&l=0&md=th",bike_list)
-
-#Filter: All ´Denmark + cykler + XT
-bike_list <-dba_update("http://www.dba.dk/cykler/?soeg=xt&fra=privat&sort=listingdate-desc",bike_list)
-
-#save result in a file
-write.csv(x = bike_list,file = "bike_list.csv",row.names = FALSE)
-
-
+library(rvest)  # hmtl parsing package
 blocket_update <- function(blocket_url,bike_list){
       
       html_block <- read_html(blocket_url)
@@ -27,7 +12,7 @@ blocket_update <- function(blocket_url,bike_list){
       #ID <- sub(pattern = "item_",x = ID, replacement = "")
       i <- 1
       
-      while (!(ID[i] %in% bike_list$id | i > length(ID))){  # a checker
+      while (!(ID[i] %in% bike_list$id) & !(i > length(ID))){  # a checker
             
             #title & link    
             CSS_selector <- paste("#",ID[i]," > div:nth-child(2) > h1:nth-child(2) > a:nth-child(1)",sep = "" )
@@ -68,8 +53,8 @@ blocket_update <- function(blocket_url,bike_list){
             bike_list <- rbind(bike_list,row_to_add)
             i <- i + 1
       }
+      bike_list
 }
-
 dba_update <- function(dba_url,bike_list){
       
       html_block <- read_html(dba_url)
@@ -77,70 +62,97 @@ dba_update <- function(dba_url,bike_list){
       #Extract ID (in dba the ID is found on child element, so the code structure change a little bit. 
       sub_block <- html_nodes(html_block, "tr.dbaListing > td:nth-child(2) > div:nth-child(3) > a:nth-child(1)")
       ID_ <- html_attr(x = sub_block,name = "href")
-      ID_ <- substr(ID,nchar(ID)-13,nchar(ID)-1)
-
+      ID_ <- substr(ID_,nchar(ID_)-13,nchar(ID_)-1)
+      
       i <- 1
       j <- 1
       
-      while (!(ID_[j] %in% bike_list$id | j > length(ID_))){
+      while (!(ID_[j] %in% bike_list$id) & !(j > length(ID_))){
+            print(j)
+            print(ID_[j])
+            print(!(ID_[j] %in% bike_list$id))
             
-               
+            
             CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td:nth-child(2) > div:nth-child(3) > a:nth-child(1)",sep = "" )
             sub_block <- html_nodes(html_block, CSS_selector)
             
             # In dba website, We cannot call the block directly by the ID, we need to iterate one by one on i, and check if the block is not empty.
             if(length(sub_block) != 0){
-            
-            #title & link 
-                 
-            link <- html_attr(x = sub_block,name = "href") 
-            splited_string <- strsplit(link, "/")
-            title <- splited_string[[1]][4]
-            ID <- splited_string[[1]][5]
-      
-            
-            # Extract date
-            CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td[title=Dato]",sep = "" )  #CSS still works without quotes around "Dato"..
-            sub_block <- html_nodes(html_block, CSS_selector)
-            
-            date <- html_text(sub_block) 
-            date <- gsub(pattern = "^\\s+|\\s+$",replacement =  "", x = date) # the magic to remove leading or trailing whitespace
-            
-            if(   date == "I dag"){
-                  date <- as.Date(Sys.time())
-            }else if(date == "I går"){
-                  date <- as.Date(Sys.time())-1
-            }else{
-                  date <- gsub(pattern = "\\.",replacement = "",x = date)  #"." is a metacharacter --> escape needed \\
-                  date <- paste(date, format(Sys.time(), "%Y"),sep = " ") 
-                  date <- strptime(date, "%d %B %Y")  #to get 
-                  date <- as.Date(date)
+                  
+                  #title & link 
+                  
+                  link <- html_attr(x = sub_block,name = "href") 
+                  splited_string <- strsplit(link, "/")
+                  title <- splited_string[[1]][4]
+                  ID <- splited_string[[1]][5]
+                  
+                  
+                  # Extract date
+                  CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td[title=Dato]",sep = "" )  #CSS still works without quotes around "Dato"..
+                  sub_block <- html_nodes(html_block, CSS_selector)
+                  
+                  date <- html_text(sub_block) 
+                  date <- gsub(pattern = "^\\s+|\\s+$",replacement =  "", x = date) # the magic to remove leading or trailing whitespace
+                  date <- 
+                  
+                  if(   date == "I dag"){
+                        date <- as.Date(Sys.time())
+                  }else if(date == "I gÃ¥r"){
+                        date <- as.Date(Sys.time())-1
+                  }else{
+                        date <- gsub(pattern = "\\.",replacement = "",x = date)  #"." is a metacharacter --> escape needed \\
+                        date <- paste(date, format(Sys.time(), "%Y"),sep = " ") 
+                        date <- strptime(date, "%d %B %Y")  #to get 
+                        date <- as.Date(date)
+                  }
+                  
+                  
+                  # Extract pictures link
+                  CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td:nth-child(1) > div:nth-child(1) > a:nth-child(1) > div:nth-child(1)",sep = "" )  #CSS still works without quotes around "Dato"..
+                  sub_block <- html_nodes(html_block, CSS_selector)
+                  img_link <- html_attr(x = sub_block,name = "data-original")
+                  download.file(url = img_link, 
+                                destfile = paste("./pictures/",date, "_dba_", ID, ".jpg",sep = ""), 
+                                mode="wb")
+                  
+                  #add row
+                  row_to_add <- data.frame( site = c("dba"),
+                                            id = ID,
+                                            title = title,
+                                            link = link,
+                                            img_link = img_link,
+                                            date = date)
+                  
+                  bike_list <- rbind(bike_list,row_to_add)
+                  j <- j + 1
             }
-            
-            
-            # Extract pictures link
-            CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td:nth-child(1) > div:nth-child(1) > a:nth-child(1) > div:nth-child(1)",sep = "" )  #CSS still works without quotes around "Dato"..
-            sub_block <- html_nodes(html_block, CSS_selector)
-            img_link <- html_attr(x = sub_block,name = "data-original")
-            download.file(url = img_link, 
-                          destfile = paste("./pictures/",date, "_dba_", ID, ".jpg",sep = ""), 
-                          mode="wb")
-            
-            #add row
-            row_to_add <- data.frame( site = c("dba"),
-                                      id = ID,
-                                      title = title,
-                                      link = link,
-                                      img_link = img_link,
-                                      date = date)
-            
-            bike_list <- rbind(bike_list,row_to_add)
-            j <- j + 1
-            }
-      i <- i + 1
+            i <- i + 1
       }
       bike_list
 }
+
+# archives previous pictures
+list_of_files <- list.files("./pictures/", "*.*")
+list_of_files <- paste("./pictures/",list_of_files,sep = "")
+file.copy(from = list_of_files, to = "./archives/") #seems long process...
+file.remove(list_of_files)
+
+# read previous results from a file
+bike_list <- read.csv(file = "bike_list.csv")
+bike_list$date <- as.Date(bike_list$date)
+bike_list$id <- gsub(pattern = "^\\s+|\\s+$",replacement =  "", x = bike_list$id)  #just in case
+
+# blocket: filter -> All sweden + cyclar + (XT or Btwin) 
+bike_list <-blocket_update("https://www.blocket.se/hela_sverige?q=Btwin+OR+XT&cg=6060&w=3&st=s&c=&f=p&ca=23&is=1&l=0&md=th",bike_list)
+
+# dba: filter -> All ?Denmark + cykler + XT
+bike_list <-dba_update("http://www.dba.dk/cykler/?soeg=xt&fra=privat&sort=listingdate-desc",bike_list)
+
+# save result of the updated bike_list in a file
+write.csv(x = bike_list,file = "bike_list.csv",row.names = FALSE)
+
+
+
 
 
 
