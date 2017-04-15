@@ -110,6 +110,7 @@ dba_update <- function(dba_url,bike_list){
                   CSS_selector <- paste("tr.dbaListing:nth-child(",i,") > td:nth-child(1) > div:nth-child(1) > a:nth-child(1) > div:nth-child(1)",sep = "" )  #CSS still works without quotes around "Dato"..
                   sub_block <- html_nodes(html_block, CSS_selector)
                   img_link <- html_attr(x = sub_block,name = "data-original")
+                  print(img_link)
                   download.file(url = img_link, 
                                 destfile = paste("./pictures/",date, "_dba_", ID, ".jpg",sep = ""), 
                                 mode="wb")
@@ -186,6 +187,116 @@ secondhandbikes_update <- function(secondhandbikes_url,bike_list){
       }
       bike_list
 }
+
+facebook_update <- function(facebook_url,bike_list){
+      
+      library(httr)
+      facebook_url <- "https://www.facebook.com/groups/616176611841772/for_sale_search/?forsalesearchtype=for_sale&availability=available&query=cykel"
+      
+      html_block <- GET(facebook_url, authenticate("cleremaurice@yahoo.fr","4lB4torFa"))
+      html_block <- read_html(html_block)
+
+      # Extract ID table 
+      #mall_post_1177103902415704 > div:nth-child(1) > div:nth-child(1) > a:nth-child(1)
+      
+      sub_block <- html_nodes(html_block, "div:nth-child(1) > div:nth-child(1) > a:nth-child(1)")
+      ID <- html_attr(x = sub_block,name = "href")
+      ID <- substr(ID,nchar(ID)-3,nchar(ID))
+      
+      i <- 1
+      
+      while (!(ID[i] %in% bike_list$id) & !(i > length(ID))){
+            
+            # link 
+            CSS_selector <- paste("div.serp-bike:nth-child(",i,") > a:nth-child(1)",sep = "" )
+            sub_block <- html_nodes(html_block, CSS_selector)
+            link <- html_attr(x = sub_block,name = "href") 
+            link <- paste("https://secondhandbikes.dk", link,sep = "")
+            
+            # title
+            CSS_selector <- paste("div.serp-bike:nth-child(",i,") > a:nth-child(1) > div:nth-child(2) > span:nth-child(1)",sep = "" )
+            sub_block <- html_nodes(html_block, CSS_selector)
+            title <- html_text(sub_block) 
+            title <- gsub(pattern = "^\\s+|\\s+$",replacement =  "", x = title)
+            
+            # image link
+            CSS_selector <- paste("div.serp-bike:nth-child(",i,") > a:nth-child(1) > div:nth-child(1) > img:nth-child(1)",sep = "" )
+            sub_block <- html_nodes(html_block, CSS_selector)
+            img_link <- html_attr(x = sub_block,name = "src")
+            img_link <- paste("https://secondhandbikes.dk", img_link,sep = "")
+            
+            # date
+            date <- strsplit(x = img_link, split = "Thumbs/")[[1]][2]
+            date <- substr(x = date,start = 1,stop = 8)
+            date <- strptime(date, "%y-%m-%d")
+            date <- as.Date(date)
+            
+            #download image
+            download.file(url = img_link, 
+                          destfile = paste("./pictures/",date, "_2HB_", ID[i], ".jpg",sep = ""), 
+                          mode="wb")
+            
+            # Add row to bike_list
+            row_to_add <- data.frame( site = c("secondhandbikes"),
+                                      id = ID[i],
+                                      title = title,
+                                      link = link,
+                                      img_link = img_link,
+                                      date = date)
+            
+            bike_list <- rbind(bike_list,row_to_add)
+            
+            i <- i + 1
+      }
+      bike_list
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # archives previous pictures
 list_of_files <- list.files("./pictures/", "*.*")
