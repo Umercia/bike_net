@@ -60,7 +60,7 @@ blocket_update <- function(blocket_url,bike_list){
            }
       }
       
-      bike_list
+      return(bike_list)
 }
 
 dba_update <- function(dba_url, bike_list) {
@@ -155,7 +155,7 @@ dba_update <- function(dba_url, bike_list) {
     }
     
     #final results of the function
-    bike_list
+    return(bike_list)
 }
 
       
@@ -218,7 +218,7 @@ secondhandbikes_update <- function(secondhandbikes_url,bike_list){
           }
       }
   
-      bike_list
+      return(bike_list)
 }
 
 facebook_update <- function(facebook_url,bike_list){
