@@ -3,6 +3,9 @@
 
 library(rvest)  # hmtl parsing package
 
+# Need to be set up for automation
+setwd("C:/Users/Mo/Documents/R_Code/bike_net")
+
 blocket_update <- function(blocket_url,bike_list){
       
       html_block <- read_html(blocket_url)
